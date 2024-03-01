@@ -7,23 +7,7 @@
         <v-card-subtitle class="text-start">請注意，系統只會保留最新的一萬筆檔案</v-card-subtitle>
         <v-list>
           <template v-for="pair, i in textAndSoundPairs" :key="i">
-            <v-dialog width="500">
-              <template v-slot:activator="{ props }">
-
-                <v-list-item v-bind="props" :title="pair.text" class="text-start">
-                  <template v-slot:append>
-                    <v-btn download variant="tonal" color="success" :href="`/api/download/${pair.fileId}`">下載</v-btn>
-                  </template>
-                </v-list-item>
-
-              </template>
-
-              <v-card>
-                <v-card-text>
-                  {{ pair.text }}
-                </v-card-text>
-              </v-card>
-            </v-dialog>
+            <AudioListItem :model-value="pair"></AudioListItem>
 
 
           </template>
@@ -54,23 +38,24 @@
 </template>
 
 <script lang="ts" setup>
+import AudioListItem from '@/components/AudioListItem.vue';
+
 import { ref } from 'vue';
 import { post_api } from '@/utils/api';
-import { SnackBar } from '@/utils/model'
+import { SnackBar, AudioPair } from '@/utils/model'
+import { downloadFile } from '@/utils/utils'
 
 const text = ref('')
 const speed = ref(2.0)
 
 const autoDownload = ref(false)
 
-const textAndSoundPairs = ref<{
-  text: string,
-  fileId: string,
-}[]>([])
+const textAndSoundPairs = ref<AudioPair[]>([])
 
 const loading = ref(false)
 
 const snackbarList = ref<SnackBar[]>([])
+
 
 async function submit() {
   if (!text.value) {
@@ -84,20 +69,16 @@ async function submit() {
   }
   else {
     textAndSoundPairs.value.push(
+      // var audio = new Audio(`/api/download/${fileId}`);
       { text: text.value, fileId: snackbar.data as string }
     )
     if (autoDownload.value) {
-      const link = document.createElement('a')
-      link.href = `/download/${snackbar.data}`;
-
-      link.download = `${snackbar.data}.mp3`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+      downloadFile(snackbar.data)
     }
+    text.value = ''
   }
   loading.value = false
-  text.value = ''
+
 
 
 }

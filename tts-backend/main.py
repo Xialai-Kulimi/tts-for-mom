@@ -108,9 +108,10 @@ def tts(text, speed):
     filename = Path(output_path, f"{file_id}.mp3")
     tts = gTTS(text=text, lang="zh", slow=False)
     tts.save(filename)
-    audio = AudioSegment.from_mp3(open(filename, "rb"))
-    speed_audio = audio.speedup(playback_speed=speed)
-    speed_audio.export(filename, format="mp3")
+    if speed != 1:
+        audio = AudioSegment.from_mp3(open(filename, "rb"))
+        speed_audio = audio.speedup(playback_speed=speed)
+        speed_audio.export(filename, format="mp3")
     return file_id
 
 
@@ -131,7 +132,7 @@ async def test_endpoint(payload: SoundPayload):
         return Payload.error("請輸入文字")
     file_id = tts(payload.text, payload.speed)
     allow_list.append(file_id)
-    while len(allow_list) > 4:
+    while len(allow_list) > 10000:
         old_file_id = allow_list.pop(0)
         remove(Path(output_path, f"{old_file_id}.mp3"))
 

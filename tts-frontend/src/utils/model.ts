@@ -4,3 +4,7 @@ export type SnackBar = {
     data?: any,
   }
   
+export type AudioPair = {
+  text: string,
+  fileId: string,
+}
