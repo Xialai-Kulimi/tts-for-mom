@@ -1,10 +1,9 @@
-from os import environ, getenv, remove, mkdir
+from os import getenv, remove, mkdir
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from motor.motor_asyncio import AsyncIOMotorClient
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
@@ -15,11 +14,6 @@ from uuid import uuid4
 from pathlib import Path
 from starlette.responses import FileResponse
 
-
-client = AsyncIOMotorClient(environ["MONGODB_URL"])
-database = client[environ["DATABASE"]]
-
-sound_collection = database["sound"]
 
 console = Console()
 
