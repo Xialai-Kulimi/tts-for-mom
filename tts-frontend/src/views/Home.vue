@@ -2,7 +2,7 @@
   <!-- <HelloWorld /> -->
   <v-container class="d-flex flex-column text-center align-center justify-center" style="height: 100%;">
 
-    <v-card title="文字轉語音" width="500">
+    <v-card title="文字轉語音" max-width="100vw" width="500">
       <v-card-text>
         <v-card-subtitle class="text-start">請注意，系統只會保留最新的一萬筆檔案</v-card-subtitle>
         <v-list>
@@ -14,17 +14,23 @@
 
         </v-list>
 
-
         <v-card-actions>
-          <v-text-field variant="solo-filled" flat density="compact" hide-details v-model="text" class="mr-4"
-            placeholder="請輸入要轉換的文字" @keydown.enter="submit" :loading="loading" :disabled="loading"></v-text-field>
+          <v-textarea variant="solo-filled" flat density="compact" hide-details v-model="text" class="mr-4" auto-grow
+            rows="1" placeholder="請輸入要轉換的文字" :loading="loading" :disabled="loading"></v-textarea>
           語速：
-          <input type="number" v-model="speed" step="0.1" style="width: 50px;">
-          <v-btn @click="submit">送出</v-btn>
+          <input type="number" v-model="speed" step="0.1" style="width: 50px;" :disabled="loading">
+          <v-btn @click="submit" :disabled="loading">送出</v-btn>
         </v-card-actions>
         <v-card-actions>
+          <v-checkbox v-model="autoDownload" label="自動下載" hide-details density="compact" :disabled="loading"></v-checkbox>
+          <v-tooltip text="自動根據換行分割成不同語音檔案">
+            <template v-slot:activator="{ props }">
+              <v-checkbox v-bind="props" v-model="split" label="批次轉換" hide-details density="compact"
+                :disabled="loading"></v-checkbox>
 
-          <v-checkbox v-model="autoDownload" label="自動下載" hide-details density="compact"></v-checkbox>
+
+            </template>
+          </v-tooltip>
         </v-card-actions>
       </v-card-text>
     </v-card>
@@ -49,6 +55,7 @@ const text = ref('')
 const speed = ref(2.0)
 
 const autoDownload = ref(false)
+const split = ref(false)
 
 const textAndSoundPairs = ref<AudioPair[]>([])
 
@@ -56,24 +63,34 @@ const loading = ref(false)
 
 const snackbarList = ref<SnackBar[]>([])
 
+function handleResponse(pair: AudioPair) {
+  textAndSoundPairs.value.push(
+    { text: pair.text, fileId: pair.fileId }
+  )
+  if (autoDownload.value) {
+    downloadFile(pair.fileId)
+  }
+}
 
 async function submit() {
   if (!text.value) {
     return
   }
   loading.value = true
-  const snackbar = await post_api('/sound', { text: text.value, speed: speed.value })
+  const snackbar = await post_api('/sound', { text: text.value, speed: speed.value, split: split.value })
   if (snackbar.status == 'error') {
     snackbarList.value.push(snackbar)
 
   }
   else {
-    textAndSoundPairs.value.push(
-      // var audio = new Audio(`/api/download/${fileId}`);
-      { text: text.value, fileId: snackbar.data as string }
-    )
-    if (autoDownload.value) {
-      downloadFile(snackbar.data)
+    if (Array.isArray(snackbar.data)) {
+      for (let i = 0; i < snackbar.data.length; i++) {
+        const pair = snackbar.data[i];
+        handleResponse(pair)
+      }
+    }
+    else {
+      handleResponse(snackbar.data)
     }
     text.value = ''
   }

@@ -97,16 +97,17 @@ class Payload(BaseModel):
 class SoundPayload(BaseModel):
     text: str
     speed: float
+    split: bool = False
 
 
 from gtts import gTTS
 from pydub import AudioSegment
 
 
-def tts(text, speed):
+def tts(text: str, speed: float):
     file_id = str(uuid4())
     filename = Path(output_path, f"{file_id}.mp3")
-    tts = gTTS(text=text, lang="zh", slow=False)
+    tts = gTTS(text=text.strip(), lang="zh", slow=False)
     tts.save(filename)
     if speed != 1:
         audio = AudioSegment.from_mp3(open(filename, "rb"))
@@ -121,8 +122,24 @@ allow_list = []
 @app.get("/download/{file_id}")
 async def download_file(file_id: str):
     if file_id in allow_list:
-        return FileResponse(Path(output_path, f"{file_id}.mp3"))
+        return FileResponse(
+            Path(output_path, f"{file_id}.mp3"), headers={"Content-Type": "audio/mpeg"}
+        )
     return Payload.error("不存在此檔案")
+
+
+class AudioPair(BaseModel):
+    text: str
+    fileId: str
+
+
+def gen_tts(text: str, speed: float):
+    file_id = tts(text, speed)
+    allow_list.append(file_id)
+    while len(allow_list) > 10000:
+        old_file_id = allow_list.pop(0)
+        remove(Path(output_path, f"{old_file_id}.mp3"))
+    return file_id
 
 
 @app.post("/sound")
@@ -130,13 +147,21 @@ async def test_endpoint(payload: SoundPayload):
     console.log(payload)
     if not payload.text:
         return Payload.error("請輸入文字")
-    file_id = tts(payload.text, payload.speed)
-    allow_list.append(file_id)
-    while len(allow_list) > 10000:
-        old_file_id = allow_list.pop(0)
-        remove(Path(output_path, f"{old_file_id}.mp3"))
+    if payload.split:
+        return Payload.success(
+            "成功建立批次語音",
+            [
+                AudioPair(text=text, fileId=gen_tts(text, speed=payload.speed)).model_dump()
+                for text in payload.text.split("\n")
+                if text.strip()
+            ],
+        )
 
-    return Payload(status="success", message="成功建立語音", data=str(file_id))
+    else:
+        file_id = gen_tts(payload.text, payload.speed)
+        return Payload.success("成功建立語音", AudioPair(text=payload.text, fileId=file_id).model_dump())
+
+    # return Payload(status="success", message="成功建立語音", data=str(file_id))
 
 
 if __name__ == "__main__":
