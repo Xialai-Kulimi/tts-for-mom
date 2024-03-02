@@ -119,9 +119,8 @@ def tts(text: str, speed: float):
 allow_list = []
 
 
-@app.get("/download/{filepath}")
-async def download_file(filepath: str):
-    file_id = filepath.replace('.mp3', '')
+@app.get("/download/{file_id}")
+async def download_file(file_id: str):
     if file_id in allow_list:
         return FileResponse(
             Path(output_path, f"{file_id}.mp3"), headers={"Content-Type": "audio/mpeg"}, media_type="audio/mpeg"
